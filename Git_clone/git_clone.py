@@ -6,6 +6,7 @@ from colorama import init, Fore
 import time
 import sys
 import os
+import platform
 
 
 init(autoreset=True)# Գունավոր տպելու համար
@@ -36,6 +37,14 @@ def ls_a(pth=working_directory):
 
 def ls_la(pth=working_directory):
     return terminal(["ls", "-la", pth])
+
+#NGitIgnore
+
+if not ".ngitignore" in terminal(['ls', '-a', working_directory]):
+    terminal(['touch', '.ngitignore'])
+
+ngit_ignore = [[line.strip() for line in open(f"{working_directory}/.ngitignore").readlines() if line.startswith('.')],
+               [line.strip() for line in open(f"{working_directory}/.ngitignore").readlines() if not line.startswith('.')]]
 
 
 def ngit_add(args=[], add_all=False, wd=working_directory):
@@ -68,7 +77,11 @@ def ngit_add(args=[], add_all=False, wd=working_directory):
             name = name[::-1]
             pthh = i[:len(i)-len(name)]
 
-        ex_code = terminal(["cp", "-rua", f"{wd}/{i}", f"{wd}/.ngit/{branch}/add/{pthh}"], ret="ex")
+        if platform.system() == 'Darwin':
+            ex_code = terminal(["rsync", "-rua", f"{wd}/{i}", f"{wd}/.ngit/{branch}/add/{pthh}"], ret="ex")
+        else:
+            ex_code = terminal(["cp", "-rua", f"{wd}/{i}", f"{wd}/.ngit/{branch}/add/{pthh}"], ret="ex")
+
         if ex_code:
             print("Error in adding")
 
@@ -119,15 +132,25 @@ def ngit_status(for_user = True):
     curr_path = working_directory
     addd_path = f"{working_directory}/.ngit/{branch}/add"
     comm_m_1_path = f"{working_directory}/.ngit/{branch}/commits/{num}"
-    
+
     # are_dif_curr_comm_m_1 = are_different(curr_path, comm_m_1_path)
     # are_dif_curr_addd = are_different(curr_path, addd_path)
     # are_dif_add_comm_m_1 = are_different(addd_path, comm_m_1_path)
-    
+
     dif_curr_comm_m_1 = find_diff_for_status(curr_path, comm_m_1_path)
     dif_curr_addd = find_diff_for_status(curr_path, addd_path)
     dif_add_comm_m_1 = find_diff_for_status(addd_path, comm_m_1_path)
-    
+
+    ignored = set()
+
+    # appendes, deletes, modifies
+    for lst in dif_curr_addd:
+        for file in lst:
+            if in_ngitignore(file):
+                ignored.add(file)
+
+    dif_curr_addd[0] = list(set(dif_curr_addd[0]) - ignored)
+
     if for_user:
         bool_for_print = True
         if have_dif(dif_add_comm_m_1):
@@ -143,9 +166,11 @@ def ngit_status(for_user = True):
             print("nothing to add or commit, working tree clean")
     else:
         return dif_curr_comm_m_1 
-    
-        
 
+
+def in_ngitignore(file):
+    if file.startswith('.') and file in ngit_ignore[0] or file in ngit_ignore[1]:
+        return True
 
 
 def ngit_branch():
@@ -168,7 +193,7 @@ def ngit_new_branch(br_name):
     if ex_code_7:
         print(ex_code_7, "7")
 
-    ex_code_8 = terminal(["cp", "-r"] + glob(f"{ngit_working_directory}/.ngit/master/*") + [working_directory + "/.ngit/" + br_name + "/"], ret="ex")
+    ex_code_8 = terminal(["rsync", "-r"] + glob(f"{ngit_working_directory}/.ngit/master/*") + [working_directory + "/.ngit/" + br_name + "/"], ret="ex")
     if ex_code_8:
         print("Error in initializing new branch : " + br_name)
     f = open(f"{working_directory}/.ngit/branch_info.txt", "r")
@@ -211,7 +236,7 @@ def ngit_checkout(branch_name):
                     if i != ".." and i != "." and i != ".ngit":
                         a = f"{working_directory}/.ngit/{branch_name}/commits/{num}/{i}"
                         b = f"{working_directory}/"
-                        ex_code_10 = terminal(["cp", "-ra", a, b], ret="ex")
+                        ex_code_10 = terminal(["rsync", "-ra", a, b], ret="ex")
                         if ex_code_10:
                             print("10 10 10", ex_code_10)
             
@@ -246,7 +271,7 @@ def ngit_merge(br_name):
             print(i, " : ", elem)
         dif = dif_of_br[1] + dif_of_br[2]    
         for i in dif:
-            ex_code_14 = terminal(["cp", "-rau"] + [f"{working_directory}/.ngit/{br_name}/commits/{num_other}/{i}"] + [working_directory + "/"], ret="ex")
+            ex_code_14 = terminal(["rsync", "-rau"] + [f"{working_directory}/.ngit/{br_name}/commits/{num_other}/{i}"] + [working_directory + "/"], ret="ex")
             if ex_code_14:
                 print("14 14 14", ex_code_14)  
         ngit_add(add_all=True)
@@ -338,7 +363,7 @@ def find_diff_for_status(pthh_1, pthh_2):
                 foo(pth_1 + "/" + i, pth_2 + "/" + i, appnd=appnd + i + "/")
         return 
     foo(pthh_1, pthh_2)
-    return appendes, deletes, modifies                
+    return [appendes, deletes, modifies]
 
 
 def ngit_commit(message=""):
@@ -380,12 +405,12 @@ def ngit_commit(message=""):
                         if ex_code_1:
                             print(i, " -- ", ex_code_1, "  1")
                     else:
-                        ex_code_2 = terminal(["cp", "-a", f"{current_path}/{i}", commit_current_path], ret="ex")
+                        ex_code_2 = terminal(["rsync", "-a", f"{current_path}/{i}", commit_current_path], ret="ex")
                         if ex_code_2:
                             print(ex_code_2, "  2")
 
                 else:# i not in commit_minus_1.keys()
-                    ex_code_3 = terminal(["cp", "-a", f"{current_path}/{i}", commit_current_path], ret="ex")
+                    ex_code_3 = terminal(["rsync", "-a", f"{current_path}/{i}", commit_current_path], ret="ex")
                     if ex_code_3:
                         print(ex_code_3, "  3")
             elif current[i][0] == "d":
@@ -399,7 +424,7 @@ def ngit_commit(message=""):
                     lst.remove(".")
                     lst.remove("..")
                     for j in lst:
-                        ex_code_5 = terminal(["cp", "-rua", f"{current_path}/{i}/{j}", f"{commit_current_path}/{i}"], ret="ex")
+                        ex_code_5 = terminal(["rsync", "-rua", f"{current_path}/{i}/{j}", f"{commit_current_path}/{i}"], ret="ex")
                         if ex_code_5:
                             print(ex_code_5, i, "  5")            
 
@@ -413,7 +438,7 @@ def ngit_commit(message=""):
     if num == "1":
         if lst:
             for i in lst:
-                ex_code = terminal(["cp", "-rua", f"{working_directory}/.ngit/{branch}/add/{i}", f"{working_directory}/.ngit/{branch}/commits/{num}/"], ret="ex")
+                ex_code = terminal(["rsync", "-rua", f"{working_directory}/.ngit/{branch}/add/{i}", f"{working_directory}/.ngit/{branch}/commits/{num}/"], ret="ex")
                 if ex_code:
                     print(ex_code)
                 can_append = True
@@ -484,9 +509,14 @@ def ngit_log():
     with open(f"{working_directory}/.ngit/{branch}/commits/commits_info.txt",'r') as file:
         print(file.read())
 
-
 def start_if():
+
+    global name_user, email_user
     if len(sys.argv) > 1:
+
+        file_remove = "" # file anunem talis vor jnji
+        directory_remove = "" # papki anunem talis vor jnji
+
         if sys.argv[1] == "--version":
             print("ngit version is 1.0.0")
 
@@ -512,7 +542,7 @@ def start_if():
             rebase    Reapply commits on top of another base tip
             """)
 
-        if sys.argv[1] == "init":
+        elif sys.argv[1] == "init":
             if ".ngit" in terminal(["ls", "-a", working_directory]):
                 print("You already have initialized!")
             else:
@@ -525,11 +555,8 @@ def start_if():
 
 
 
-        file_remove = "" # file anunem talis vor jnji
-        directory_remove = "" # papki anunem talis vor jnji
-        global name_user , email_user
 
-        if ".ngit" in terminal(["ls", "-a", working_directory]):
+        elif ".ngit" in terminal(["ls", "-a", working_directory]):
             if sys.argv[1] == "add":
                 if len(sys.argv) == 2 or sys.argv[2] == ".":
                     ngit_add(add_all = True)
