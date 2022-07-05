@@ -169,7 +169,7 @@ def ngit_status(for_user = True):
 
 
 def in_ngitignore(file):
-    if file.startswith('.') and file in ngit_ignore[0] or file in ngit_ignore[1]:
+    if file in ngit_ignore[0] or file in ngit_ignore[1]:
         return True
 
 
@@ -509,6 +509,53 @@ def ngit_log():
     with open(f"{working_directory}/.ngit/{branch}/commits/commits_info.txt",'r') as file:
         print(file.read())
 
+def ngit_log_to(hash_code):
+    diff = ngit_status(for_user=False)
+    if True in [bool(i) for i in diff]:
+        print("Commit your changes before logging")
+        return
+    f = open(f"{working_directory}/.ngit/{branch}/commits/info.txt", "r")
+    ls = f.readlines()
+    f.close()
+    tiv = ls[0].split()[-1]
+    ls = ls[1:]
+    # num = [i.split()[0] for i in ls if i.split()[1] == hash_code]
+    num = 0
+    mess = ""
+    for i in ls:
+        i = i.split()
+        if i[1] == hash_code:
+            num = int(i[0])
+            mess = i[2]
+            break
+    if not num:
+        print("Commit with your hash code not exist")
+        return
+    if num == tiv:
+        print(f"You already in {hash_code} commit")
+    ex_code_9_9 = terminal(["rm", "-r"] + glob(f"{working_directory}/[!.'ngit']*", recursive=True),
+                           ret="ex")  # stugi sax texery vor ex_codov es stugum ret="ex" areles
+    if ex_code_9_9:
+        print("Error in func log_to, when trying to clear current directory")
+        return
+    lst = ls_a(pth=f"{working_directory}/.ngit/{branch}/commits/{num}/")
+    for i in lst:
+        if i != ".." and i != "." and i != ".ngit":
+            a = f"{working_directory}/.ngit/{branch}/commits/{num}/{i}"
+            b = f"{working_directory}/"
+            ex_code_10 = terminal(["cp", "-ra", a, b], ret="ex")
+            if ex_code_10:
+                print("Error in func log_to, when trying to copy files for logging")
+    ngit_add(add_all=True)
+    ngit_commit(mess, m_1=str(num))
+
+def ngit_commits_list():
+    f = open(f"{working_directory}/.ngit/{branch}/commits/info.txt", "r")
+    ls = f.readlines()
+    f.close()
+    for i in ls:
+        print(i, end="")
+
 def start_if():
 
     global name_user, email_user
@@ -564,7 +611,9 @@ def start_if():
                     ngit_add(sys.argv[2:])
 
             elif sys.argv[1] == "commit":
-                if sys.argv[2] == "-m" and len(sys.argv) == 4:
+                if len(sys.argv) == 3 and sys.argv[2] == '-list':
+                    ngit_commits_list()
+                elif sys.argv[2] == "-m" and len(sys.argv) == 4:
                     ngit_commit(sys.argv[3])
 
             elif sys.argv[1] == "status":
@@ -642,10 +691,13 @@ def start_if():
                     reg_email("")
 
             elif sys.argv[1] == "log":
-                ngit_log()
+                if len(sys.argv) == 2:
+                    ngit_log()
+                elif len(sys.argv) == 3 and sys.argv[2] == '-to':
+                    ngit_log_to(sys.argv[2])
 
             elif sys.argv[1] == "init":
-                pass    
+                pass
 
             else:
                 print(f"ngit: {sys.argv[1]} is not a ngit command. See 'ngit --help'.")
