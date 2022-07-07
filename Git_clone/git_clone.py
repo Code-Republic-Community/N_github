@@ -29,7 +29,7 @@ try:
     f = open(f"{working_directory}/.ngit/branch_info.txt", "r")
     branch = f.readlines()[1].split()[-1]
     f.close()
-except FileNotFoundError:
+except (FileNotFoundError, IndexError):
     branch = "master"
 
 def ls_a(pth=working_directory):
@@ -46,6 +46,7 @@ if not ".ngitignore" in terminal(['ls', '-a', working_directory]):
 ngit_ignore = [[line.strip() for line in open(f"{working_directory}/.ngitignore").readlines() if line.startswith('.')],
                [line.strip() for line in open(f"{working_directory}/.ngitignore").readlines() if not line.startswith('.')]]
 
+print (ngit_ignore)
 
 def ngit_add(args=[], add_all=False, wd=working_directory):
     try:
@@ -247,6 +248,24 @@ def ngit_checkout(branch_name):
     else:
         print("Branch " + branch_name + " dont exist")
 
+def branch_deleting(branch):
+    f = open(f"{working_directory}/.ngit/branch_info.txt", "r")
+    ls = f.readlines()
+    ls1 = [el.strip() for el in ls]
+    print(ls1)
+    f.close()
+    if branch == ls1[1].split()[-1]:
+        print('Checkout on another branch before deleting it... Please')
+        return
+    elif branch not in ls1[2:]:
+        print('There is no such a branch')
+        return
+    else:
+        ls[0] = ls1[0][:ls[0].rindex(" ") + 1] + str(int(ls1[0].split()[-1]) - 1) + '\n'
+        ls.remove(branch + '\n')
+        terminal(['rm', '-r', f"{working_directory}/.ngit/{branch}"])
+        f = open(f"{working_directory}/.ngit/branch_info.txt", "w")
+        f.writelines(ls)
 
 def ngit_merge(br_name):
     f = open(f"{working_directory}/.ngit/branch_info.txt", "r")
@@ -374,7 +393,6 @@ def ngit_commit(message=""):
         f.close()
     except FileNotFoundError:
         branch = "master"
-    
     f = open(f"{working_directory}/.ngit/{branch}/commits/info.txt", "r")
     ls = f.readlines()
     f.close()
@@ -382,8 +400,6 @@ def ngit_commit(message=""):
     num = str(int(num) + 1)
     terminal(["mkdir", f"{working_directory}/.ngit/{branch}/commits/{num}"])
     code = generate_code()
-
-   
 
     def subfunc(commit_minus_1_path, current_path, commit_current_path):
         """Commit-ի հիմնական ֆունկցիա։ Առաջին commit-ի ժամանակ կլոնավորում է բոլոր ֆայլերը,
@@ -517,7 +533,7 @@ def ngit_log_to(hash_code):
     f = open(f"{working_directory}/.ngit/{branch}/commits/info.txt", "r")
     ls = f.readlines()
     f.close()
-    tiv = ls[0].split()[-1]
+    tiv = int(ls[0].split()[-1])
     ls = ls[1:]
     # num = [i.split()[0] for i in ls if i.split()[1] == hash_code]
     num = 0
@@ -622,6 +638,8 @@ def start_if():
             elif sys.argv[1] == "branch":
                 if len(sys.argv) > 2 and len(sys.argv) == 3:
                     ngit_new_branch(sys.argv[2])
+                elif len(sys.argv) == 4 and sys.argv[2] == '-D':
+                    branch_deleting(sys.argv[3])
                 else:
                     ngit_branch()    
 
@@ -693,8 +711,8 @@ def start_if():
             elif sys.argv[1] == "log":
                 if len(sys.argv) == 2:
                     ngit_log()
-                elif len(sys.argv) == 3 and sys.argv[2] == '-to':
-                    ngit_log_to(sys.argv[2])
+                elif len(sys.argv) == 4 and sys.argv[2] == '-to':
+                    ngit_log_to(sys.argv[3])
 
             elif sys.argv[1] == "init":
                 pass
